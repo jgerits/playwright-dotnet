@@ -38,7 +38,8 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           OWNER_LC="${OWNER,,}"
-          IMAGE="ghcr.io/${OWNER_LC}/playwright-dotnet"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          IMAGE="ghcr.io/${OWNER_LC}/${REPO_NAME}"
           SHA_TAG="sha-${SHA}"
           bash utils/docker/build.sh --amd64 noble "${IMAGE}:${SHA_TAG}"
           docker tag "${IMAGE}:${SHA_TAG}" "${IMAGE}:noble-dotnet10"
@@ -53,14 +54,32 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PACKAGE="playwright-dotnet"
-          curl -fsSL -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/user/packages/container/${PACKAGE}/visibility" \
-            -d '{"visibility":"public"}' \
-          || curl -fsSL -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/orgs/${OWNER}/packages/container/${PACKAGE}/visibility" \
-            -d '{"visibility":"public"}'
+          OWNER_LC="${OWNER,,}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          IMAGE="ghcr.io/${OWNER_LC}/${REPO_NAME}"
+          PACKAGE="${IMAGE#ghcr.io/}"
+          PACKAGE_NAME="${PACKAGE#*/}"
+          TARGETS=("users/${OWNER}" "orgs/${OWNER_LC}")
+          PACKAGES=("${PACKAGE}" "${PACKAGE_NAME}")
+
+          updated=false
+          for target in "${TARGETS[@]}"; do
+            for pkg in "${PACKAGES[@]}"; do
+              pkg_encoded="${pkg//\//%2F}"
+              url="https://api.github.com/${target}/packages/container/${pkg_encoded}/visibility"
+              echo "Attempting: ${url}"
+              if curl -fsSL -X PATCH \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                "${url}" \
+                -d '{"visibility":"public"}'; then
+                updated=true
+                break 2
+              fi
+            done
+          done
+
+          if [ "${updated}" != "true" ]; then
+            echo "Failed to update GHCR package visibility for IMAGE=${IMAGE}" >&2
+            exit 1
+          fi
