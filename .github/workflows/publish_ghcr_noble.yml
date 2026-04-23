@@ -38,7 +38,8 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           OWNER_LC="${OWNER,,}"
-          IMAGE="ghcr.io/${OWNER_LC}/playwright-dotnet"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          IMAGE="ghcr.io/${OWNER_LC}/${REPO_NAME}"
           SHA_TAG="sha-${SHA}"
           bash utils/docker/build.sh --amd64 noble "${IMAGE}:${SHA_TAG}"
           docker tag "${IMAGE}:${SHA_TAG}" "${IMAGE}:noble-dotnet10"
@@ -54,7 +55,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           OWNER_LC="${OWNER,,}"
-          IMAGE="ghcr.io/${OWNER_LC}/playwright-dotnet"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          IMAGE="ghcr.io/${OWNER_LC}/${REPO_NAME}"
           PACKAGE="${IMAGE#ghcr.io/}"
           PACKAGE_NAME="${PACKAGE#*/}"
           TARGETS=("users/${OWNER}" "orgs/${OWNER}")
