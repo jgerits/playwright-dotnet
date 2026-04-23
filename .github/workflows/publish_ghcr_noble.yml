@@ -47,39 +47,3 @@ jobs:
           docker push "${IMAGE}:${SHA_TAG}"
           docker push "${IMAGE}:noble-dotnet10"
           docker push "${IMAGE}:noble"
-
-      - name: Set package visibility to public
-        shell: bash
-        env:
-          OWNER: ${{ github.repository_owner }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          OWNER_LC="${OWNER,,}"
-          REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          IMAGE="ghcr.io/${OWNER_LC}/${REPO_NAME}"
-          PACKAGE="${IMAGE#ghcr.io/}"
-          PACKAGE_NAME="${PACKAGE#*/}"
-          TARGETS=("users/${OWNER}" "orgs/${OWNER_LC}")
-          PACKAGES=("${PACKAGE}" "${PACKAGE_NAME}")
-
-          updated=false
-          for target in "${TARGETS[@]}"; do
-            for pkg in "${PACKAGES[@]}"; do
-              pkg_encoded="${pkg//\//%2F}"
-              url="https://api.github.com/${target}/packages/container/${pkg_encoded}/visibility"
-              echo "Attempting: ${url}"
-              if curl -fsSL -X PATCH \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer ${GH_TOKEN}" \
-                "${url}" \
-                -d '{"visibility":"public"}'; then
-                updated=true
-                break 2
-              fi
-            done
-          done
-
-          if [ "${updated}" != "true" ]; then
-            echo "Failed to update GHCR package visibility for IMAGE=${IMAGE}" >&2
-            exit 1
-          fi
