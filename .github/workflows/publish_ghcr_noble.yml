@@ -1,0 +1,66 @@
+name: Publish GHCR Docker (noble, .NET 10)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-ghcr-noble:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install prerequisites and download drivers
+        shell: bash
+        run: ./build.sh --download-driver
+
+      - name: Build and push noble image
+        shell: bash
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+        run: |
+          OWNER_LC="${OWNER,,}"
+          IMAGE="ghcr.io/${OWNER_LC}/playwright-dotnet"
+          SHA_TAG="sha-${SHA}"
+          bash utils/docker/build.sh --amd64 noble "${IMAGE}:${SHA_TAG}"
+          docker tag "${IMAGE}:${SHA_TAG}" "${IMAGE}:noble-dotnet10"
+          docker tag "${IMAGE}:${SHA_TAG}" "${IMAGE}:noble"
+          docker push "${IMAGE}:${SHA_TAG}"
+          docker push "${IMAGE}:noble-dotnet10"
+          docker push "${IMAGE}:noble"
+
+      - name: Set package visibility to public
+        shell: bash
+        env:
+          OWNER: ${{ github.repository_owner }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGE="playwright-dotnet"
+          curl -fsSL -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/user/packages/container/${PACKAGE}/visibility" \
+            -d '{"visibility":"public"}' \
+          || curl -fsSL -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/orgs/${OWNER}/packages/container/${PACKAGE}/visibility" \
+            -d '{"visibility":"public"}'
