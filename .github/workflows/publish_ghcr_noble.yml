@@ -59,7 +59,7 @@ jobs:
           IMAGE="ghcr.io/${OWNER_LC}/${REPO_NAME}"
           PACKAGE="${IMAGE#ghcr.io/}"
           PACKAGE_NAME="${PACKAGE#*/}"
-          TARGETS=("users/${OWNER_LC}" "orgs/${OWNER_LC}")
+          TARGETS=("users/${OWNER}" "orgs/${OWNER_LC}")
           PACKAGES=("${PACKAGE}" "${PACKAGE_NAME}")
 
           updated=false
